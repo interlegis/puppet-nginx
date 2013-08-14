@@ -44,6 +44,7 @@ class nginx (
   $mail                   = $nginx::params::nx_mail,
   $server_tokens          = $nginx::params::nx_server_tokens,
   $http_cfg_append        = $nginx::params::nx_http_cfg_append,
+  $client_max_body_size   = $nginx::params::nx_client_max_body_size,
   $nginx_vhosts           = {},
   $nginx_upstreams        = {},
   $nginx_locations        = {},
@@ -68,6 +69,7 @@ class nginx (
     confd_purge           => $confd_purge,
     server_tokens         => $server_tokens,
     http_cfg_append       => $http_cfg_append,
+    client_max_body_size  => $client_max_body_size,
     require               => Class['nginx::package'],
     notify                => Class['nginx::service'],
   }
