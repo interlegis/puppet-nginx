@@ -14,6 +14,11 @@
 #
 # This class file is not called directly
 class nginx::params {
+
+  if $caller_module_name != undef and $caller_module_name != $module_name {
+    warning("${name} is deprecated as a public API of the ${module_name} module and should no longer be directly included in the manifest.")
+  }
+
   $nx_temp_dir                = '/tmp'
   $nx_run_dir                 = '/var/nginx'
 
@@ -24,9 +29,10 @@ class nginx::params {
   $nx_types_hash_max_size     = 1024
   $nx_types_hash_bucket_size  = 512
   $nx_names_hash_bucket_size  = 64
+  $nx_names_hash_max_size     = 512
   $nx_multi_accept            = off
-# One of [kqueue|rtsig|epoll|/dev/poll|select|poll|eventport]
-# or false to use OS default
+  # One of [kqueue|rtsig|epoll|/dev/poll|select|poll|eventport]
+  # or false to use OS default
   $nx_events_use              = false
   $nx_sendfile                = on
   $nx_keepalive_timeout       = 65
@@ -58,18 +64,32 @@ class nginx::params {
   $nx_proxy_read_timeout      = '90'
   $nx_proxy_buffers           = '32 4k'
   $nx_proxy_http_version      = '1.0'
+  $nx_proxy_buffer_size       = '8k'
 
   $nx_logdir = $::kernel ? {
     /(?i-mx:linux)/ => '/var/log/nginx',
+    /(?i-mx:sunos)/ => '/var/log/nginx',
   }
 
   $nx_pid = $::kernel ? {
     /(?i-mx:linux)/  => '/var/run/nginx.pid',
+    /(?i-mx:sunos)/  => '/var/run/nginx.pid',
   }
 
-  $nx_daemon_user = $::operatingsystem ? {
-    /(?i-mx:debian|ubuntu)/                                                    => 'www-data',
-    /(?i-mx:fedora|rhel|redhat|centos|scientific|suse|opensuse|amazon|gentoo)/ => 'nginx',
+  if $::osfamily {
+    $nx_daemon_user = $::osfamily ? {
+      /(?i-mx:redhat|suse|gentoo|linux)/ => 'nginx',
+      /(?i-mx:debian)/                   => 'www-data',
+      /(?i-mx:solaris)/                  => 'webservd',
+    }
+  } else {
+    warning('$::osfamily not defined. Support for $::operatingsystem is deprecated')
+    warning("Please upgrade from factor ${::facterversion} to >= 1.7.2")
+    $nx_daemon_user = $::operatingsystem ? {
+      /(?i-mx:debian|ubuntu)/                                                                => 'www-data',
+      /(?i-mx:fedora|rhel|redhat|centos|scientific|suse|opensuse|amazon|gentoo|oraclelinux)/ => 'nginx',
+      /(?i-mx:solaris)/                                                                      => 'webservd',
+    }
   }
 
   # Service restart after Nginx 0.7.53 could also be just
@@ -84,4 +104,12 @@ class nginx::params {
 
   $nx_http_cfg_append = false
 
+  $nx_nginx_error_log = "${nx_logdir}/error.log"
+  $nx_http_access_log = "${nx_logdir}/access.log"
+
+  # package name depends on distribution, e.g. for Debian nginx-full | nginx-light
+  $package_name   = 'nginx'
+  $package_ensure = 'present'
+  $package_source = 'nginx'
+  $manage_repo    = true
 }

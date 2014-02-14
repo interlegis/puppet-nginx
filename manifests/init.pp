@@ -4,8 +4,8 @@
 #
 # Parameters:
 #
-# There are no default parameters for this class. All module parameters are managed
-# via the nginx::params class
+# There are no default parameters for this class. All module parameters
+# are managed via the nginx::params class
 #
 # Actions:
 #
@@ -31,6 +31,9 @@
 class nginx (
   $worker_processes       = $nginx::params::nx_worker_processes,
   $worker_connections     = $nginx::params::nx_worker_connections,
+  $package_name           = $nginx::params::package_name,
+  $package_ensure         = $nginx::params::package_ensure,
+  $package_source         = $nginx::params::package_source,
   $proxy_set_header       = $nginx::params::nx_proxy_set_header,
   $proxy_http_version     = $nginx::params::nx_proxy_http_version,
   $confd_purge            = $nginx::params::nx_confd_purge,
@@ -43,35 +46,98 @@ class nginx (
   $service_restart        = $nginx::params::nx_service_restart,
   $mail                   = $nginx::params::nx_mail,
   $server_tokens          = $nginx::params::nx_server_tokens,
+  $client_max_body_size   = $nginx::params::nx_client_max_body_size,
+  $names_hash_bucket_size = $nginx::params::nx_names_hash_bucket_size,
+  $names_hash_max_size    = $nginx::params::nx_names_hash_max_size,
+  $proxy_buffers          = $nginx::params::nx_proxy_buffers,
+  $proxy_buffer_size      = $nginx::params::nx_proxy_buffer_size,
   $http_cfg_append        = $nginx::params::nx_http_cfg_append,
   $client_max_body_size   = $nginx::params::nx_client_max_body_size,
+  $nginx_error_log        = $nginx::params::nx_nginx_error_log,
+  $http_access_log        = $nginx::params::nx_http_access_log,
+  $gzip                   = $nginx::params::nx_gzip,
   $nginx_vhosts           = {},
   $nginx_upstreams        = {},
   $nginx_locations        = {},
+  $manage_repo            = $nginx::params::manage_repo,
 ) inherits nginx::params {
 
   include stdlib
 
+  if (!is_string($worker_processes)) and (!is_integer($worker_processes)) {
+    fail('$worker_processes must be an integer or have value "auto".')
+  }
+  if (!is_integer($worker_connections)) {
+    fail('$worker_connections must be an integer.')
+  }
+  validate_string($package_name)
+  validate_string($package_ensure)
+  validate_string($package_source)
+  validate_array($proxy_set_header)
+  validate_string($proxy_http_version)
+  validate_bool($confd_purge)
+  if ($proxy_cache_path != false) {
+    validate_string($proxy_cache_path)
+  }
+  if (!is_integer($proxy_cache_levels)) {
+    fail('$proxy_cache_levels must be an integer.')
+  }
+  validate_string($proxy_cache_keys_zone)
+  validate_string($proxy_cache_max_size)
+  validate_string($proxy_cache_inactive)
+  validate_bool($configtest_enable)
+  validate_string($service_restart)
+  validate_bool($mail)
+  validate_string($server_tokens)
+  validate_string($client_max_body_size)
+  if (!is_integer($names_hash_bucket_size)) {
+    fail('$names_hash_bucket_size must be an integer.')
+  }
+  if (!is_integer($names_hash_max_size)) {
+    fail('$names_hash_max_size must be an integer.')
+  }
+  validate_string($proxy_buffers)
+  validate_string($proxy_buffer_size)
+  if ($http_cfg_append != false) {
+    validate_hash($http_cfg_append)
+  }
+  validate_string($nginx_error_log)
+  validate_string($http_access_log)
+  validate_hash($nginx_upstreams)
+  validate_hash($nginx_vhosts)
+  validate_hash($nginx_locations)
+  validate_bool($manage_repo)
+
   class { 'nginx::package':
-    notify => Class['nginx::service'],
+    package_name   => $package_name,
+    package_source => $package_source,
+    package_ensure => $package_ensure,
+    notify         => Class['nginx::service'],
+    manage_repo    => $manage_repo,
   }
 
   class { 'nginx::config':
-    worker_processes      => $worker_processes,
-    worker_connections    => $worker_connections,
-    proxy_set_header      => $proxy_set_header,
-    proxy_http_version    => $proxy_http_version,
-    proxy_cache_path      => $proxy_cache_path,
-    proxy_cache_levels    => $proxy_cache_levels,
-    proxy_cache_keys_zone => $proxy_cache_keys_zone,
-    proxy_cache_max_size  => $proxy_cache_max_size,
-    proxy_cache_inactive  => $proxy_cache_inactive,
-    confd_purge           => $confd_purge,
-    server_tokens         => $server_tokens,
-    http_cfg_append       => $http_cfg_append,
-    client_max_body_size  => $client_max_body_size,
-    require               => Class['nginx::package'],
-    notify                => Class['nginx::service'],
+    worker_processes       => $worker_processes,
+    worker_connections     => $worker_connections,
+    proxy_set_header       => $proxy_set_header,
+    proxy_http_version     => $proxy_http_version,
+    proxy_cache_path       => $proxy_cache_path,
+    proxy_cache_levels     => $proxy_cache_levels,
+    proxy_cache_keys_zone  => $proxy_cache_keys_zone,
+    proxy_cache_max_size   => $proxy_cache_max_size,
+    proxy_cache_inactive   => $proxy_cache_inactive,
+    confd_purge            => $confd_purge,
+    server_tokens          => $server_tokens,
+    http_cfg_append        => $http_cfg_append,
+    client_max_body_size   => $client_max_body_size,
+    names_hash_bucket_size => $names_hash_bucket_size,
+    names_hash_max_size    => $names_hash_max_size,
+    proxy_buffers          => $proxy_buffers,
+    proxy_buffer_size      => $proxy_buffer_size,
+    nginx_error_log        => $nginx_error_log,
+    http_access_log        => $http_access_log,
+    require                => Class['nginx::package'],
+    notify                 => Class['nginx::service'],
   }
 
   class { 'nginx::service':
@@ -79,11 +145,8 @@ class nginx (
     service_restart   => $service_restart,
   }
 
-  validate_hash($nginx_upstreams)
   create_resources('nginx::resource::upstream', $nginx_upstreams)
-  validate_hash($nginx_vhosts)
   create_resources('nginx::resource::vhost', $nginx_vhosts)
-  validate_hash($nginx_locations)
   create_resources('nginx::resource::location', $nginx_locations)
 
   # Allow the end user to establish relationships to the "main" class

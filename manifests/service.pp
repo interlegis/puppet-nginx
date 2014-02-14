@@ -17,24 +17,16 @@ class nginx::service(
   $configtest_enable = $nginx::params::nx_configtest_enable,
   $service_restart   = $nginx::params::nx_service_restart
 ) {
-  exec { 'rebuild-nginx-vhosts':
-    command     => "/bin/cat ${nginx::params::nx_temp_dir}/nginx.d/* > ${nginx::params::nx_conf_dir}/conf.d/vhost_autogen.conf",
-    refreshonly => true,
-    unless      => "/usr/bin/test ! -f ${nginx::params::nx_temp_dir}/nginx.d/*",
-    subscribe   => File["${nginx::params::nx_temp_dir}/nginx.d"],
+
+  if $caller_module_name != $module_name {
+    warning("${name} is deprecated as a public API of the ${module_name} module and should no longer be directly included in the manifest.")
   }
-  exec { 'rebuild-nginx-mailhosts':
-    command     => "/bin/cat ${nginx::params::nx_temp_dir}/nginx.mail.d/* > ${nginx::params::nx_conf_dir}/conf.mail.d/vhost_autogen.conf",
-    refreshonly => true,
-    unless      => "/usr/bin/test ! -f ${nginx::params::nx_temp_dir}/nginx.mail.d/*",
-    subscribe   => File["${nginx::params::nx_temp_dir}/nginx.mail.d"],
-  }
+
   service { 'nginx':
     ensure     => running,
     enable     => true,
     hasstatus  => true,
     hasrestart => true,
-    subscribe  => Exec['rebuild-nginx-vhosts', 'rebuild-nginx-mailhosts'],
   }
   if $configtest_enable == true {
     Service['nginx'] {
