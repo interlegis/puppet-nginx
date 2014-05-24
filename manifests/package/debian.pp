@@ -19,11 +19,7 @@ class nginx::package::debian(
     $package_source = 'nginx',
     $package_ensure = 'present'
   ) {
-  
-  if $caller_module_name != $module_name {
-    warning("${name} is deprecated as a public API of the ${module_name} module and should no longer be directly included in the manifest.")
-  }
-  
+
   $distro = downcase($::operatingsystem)
 
   package { $package_name:
@@ -33,9 +29,9 @@ class nginx::package::debian(
 
   anchor { 'nginx::apt_repo' : }
 
-  include '::apt'
-
   if $manage_repo {
+    include '::apt'
+
     case $package_source {
       'nginx': {
         apt::source { 'nginx':
